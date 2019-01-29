@@ -28,5 +28,8 @@ module FaaStRuby
   module SpecHelper
     include FaaStRuby
     include RunnerMethods
+    def publish(channel, data: nil)
+      true
+    end
   end
 end
