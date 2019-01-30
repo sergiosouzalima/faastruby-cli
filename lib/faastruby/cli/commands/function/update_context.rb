@@ -52,7 +52,7 @@ module FaaStRuby
             when '-d', '--data'
               @options['data'] = @args.shift
             when '--stdin'
-              @options['data'] = STDIN.gets.chomp
+              @options['data'] = STDIN.read
             else
               FaaStRuby::CLI.error("Unknown argument: #{option}")
             end
