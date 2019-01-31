@@ -7,7 +7,13 @@ require 'faastruby/server'
 require 'sinatra'
 require 'sinatra/multi_route'
 require 'colorize'
+
 FaaStRuby::EventHub.listen_for_events!
+MUTEX = Mutex.new
+FaaStRuby::ConcurrencyController.new('staging', max: 15, type: 'workspace')
+# FaaStRuby::ConcurrencyController.new('staging/hello2', max: 5, type: 'function')
+# gotta set a default value here to be the same as the workspace if not set at the function level.
+# FaaStRuby::ConcurrencyController.new('staging/hello-world', max: 10, type: 'function')
 
 set :port, 3000
 set :bind, '0.0.0.0'
@@ -22,8 +28,23 @@ set :show_exceptions, true
 set :run, true
 
 register Sinatra::MultiRoute
+
 route :head, :get, :post, :put, :patch, :delete, '/:workspace_name/:function_name' do
   path = "#{params[:workspace_name]}/#{params[:function_name]}"
+  workspace_cc = FaaStRuby::ConcurrencyController.store[params['workspace_name']]
+  # function_cc = FaaStRuby::ConcurrencyController.store[path]
+  w_requests = MUTEX.synchronize {workspace_cc.incr(1)}
+
+  unless w_requests # = workspace_cc.incr(1) #&& f_requests = function_cc.incr(1)
+    response = FaaStRuby::Response.request_limit_reached(workspace: params['workspace_name'], function: path)
+    status response.status
+    body response.body
+    headers response.headers
+    puts "[#{path}] #=> status=#{response.status} body=#{response.body.inspect} headers=#{Oj.dump response.headers}".light_blue
+    return body response.body
+  end
+  puts "[ConcurrencyController] Workspace #{params['workspace_name']} Concurrent Requests: #{w_requests}".red
+  # puts "[ConcurrencyController] Function #{path} Concurrent Requests: #{f_requests}".red
   headers = env.select { |key, value| key.include?('HTTP_') || ['CONTENT_TYPE', 'CONTENT_LENGTH', 'REMOTE_ADDR', 'REQUEST_METHOD', 'QUERY_STRING'].include?(key) }
   if headers.has_key?("HTTP_FAASTRUBY_RPC")
     body = nil
@@ -36,6 +57,8 @@ route :head, :get, :post, :put, :patch, :delete, '/:workspace_name/:function_nam
   context = set_context(params[:workspace_name], params[:function_name])
   event = FaaStRuby::Event.new(body: body, query_params: query_params, headers: headers, context: context)
   response = FaaStRuby::Runner.new.call(params[:workspace_name], params[:function_name], event, rpc_args)
+  MUTEX.synchronize {workspace_cc.decr(1)}
+  # function_cc.decr(1)
   status response.status
   headers response.headers
   if response.binary?
@@ -44,7 +67,7 @@ route :head, :get, :post, :put, :patch, :delete, '/:workspace_name/:function_nam
     response_body = response.body
   end
   puts "[#{path}] #=> status=#{response.status} body=#{response_body.inspect} headers=#{Oj.dump response.headers}".light_blue
-  body response_body
+  body response_body  
 end
 
 def parse_body(body, content_type, method)

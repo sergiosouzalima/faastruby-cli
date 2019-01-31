@@ -82,8 +82,6 @@ EOS
           when 'ruby'
             puts "+ d #{@base_dir}".green
             puts "+ d #{@base_dir}/spec".green
-            puts "+ d #{@base_dir}/spec/helpers".green
-            puts "+ f #{@base_dir}/spec/helpers/faastruby.rb".green
             puts "+ f #{@base_dir}/spec/handler_spec.rb".green
             puts "+ f #{@base_dir}/spec/spec_helper.rb".green
             puts "+ f #{@base_dir}/Gemfile".green

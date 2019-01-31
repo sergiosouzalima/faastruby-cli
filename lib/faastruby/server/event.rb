@@ -7,5 +7,13 @@ module FaaStRuby
       @headers = headers
       @context = context
     end
+    def to_h
+      {
+        "body" => @body,
+        "query_params" => @query_params,
+        "headers" => @headers,
+        "context" => @context
+      }
+    end
   end
 end

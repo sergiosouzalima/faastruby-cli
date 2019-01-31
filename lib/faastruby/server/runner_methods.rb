@@ -89,7 +89,7 @@ module FaaStRuby
     end
 
     def puts(msg)
-      super "[#{@path}] #{msg}".green
+      super "[#{@short_path}] #{msg}".green
     end
 
     def publish(channel, data: nil)
