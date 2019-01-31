@@ -2,6 +2,7 @@ $LOAD_PATH << Dir.pwd
 module FaaStRuby
   require 'faastruby/server/errors'
   require 'faastruby/server/runner_methods'
+  require 'faastruby/server/function_object'
   require 'faastruby/server/event'
   require 'faastruby/server/response'
   ##########
