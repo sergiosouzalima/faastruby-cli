@@ -89,8 +89,6 @@ EOS
           when 'crystal'
             puts "+ d #{@base_dir}".green
             puts "+ d #{@base_dir}/spec".green
-            puts "+ d #{@base_dir}/spec/helpers".green
-            puts "+ f #{@base_dir}/spec/helpers/faastruby.cr".green
             puts "+ f #{@base_dir}/spec/handler_spec.cr".green
             puts "+ f #{@base_dir}/spec/spec_helper.cr".green
             puts "+ d #{@base_dir}/src".green

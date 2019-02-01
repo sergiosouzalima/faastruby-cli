@@ -20,8 +20,21 @@ module FaaStRuby
           @options['output_file'] ||= "#{@function_name}.zip"
         end
 
+        def ruby_runtime?
+          @yaml_config['runtime'].nil? || @yaml_config['runtime'].match(/^ruby/)
+        end
+
+        def crystal_runtime?
+          @yaml_config['runtime'].match(/^crystal/)
+        end
+
         def run
-          FaaStRuby::CLI.error('Please fix the problems above and try again') unless bundle_install
+          if ruby_runtime?
+            FaaStRuby::CLI.error('Please fix the problems above and try again') unless bundle_install
+          end
+          if crystal_runtime?
+            FaaStRuby::CLI.error('Please fix the problems above and try again') unless shards_install
+          end
           tests_passed = run_tests
           FaaStRuby::CLI.error("Build aborted because tests failed and you have 'abort_build_when_tests_fail: true' in 'faastruby.yml'") unless tests_passed || !@abort_when_tests_fail
           puts "Warning: Ignoring failed tests because you have 'abort_build_when_tests_fail: false' in 'faastruby.yml'".yellow if !tests_passed && !@abort_when_tests_fail
@@ -40,6 +53,12 @@ module FaaStRuby
 
         def build(source, output_file)
           self.class.build(source, output_file)
+        end
+
+        def shards_install
+          puts '[build] Verifying dependencies'
+          return true unless File.file?('shard.yml')
+          system('shards check') || system('shards install')
         end
 
         def bundle_install
