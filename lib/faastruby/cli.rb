@@ -5,6 +5,8 @@ require 'zip'
 require 'colorize'
 require 'faastruby/cli/commands'
 require 'faastruby/cli/package'
+require 'faastruby/cli/template'
+require 'erb'
 
 module FaaStRuby
   FAASTRUBY_YAML = 'faastruby.yml'

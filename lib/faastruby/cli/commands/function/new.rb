@@ -7,18 +7,25 @@ module FaaStRuby
           @missing_args = []
           FaaStRuby::CLI.error(@missing_args, color: nil) if missing_args.any?
           @function_name = @args.shift
-          @base_dir = "./#{@function_name}"
           parse_options
-          @options['template_path'] ||= 'templates/ruby'
-          @options['template'] ||= 'example'
+          @base_dir ||= @function_name
           @options['runtime_name'] ||= 'ruby'
           @options['runtime_version'] ||= '2.5.3'
-          @yaml_content = yaml_for(@options['runtime_name'])
+          @options['template'] ||= FaaStRuby::Template.new(type: 'local', source: Template.gem_template_path_for('example', runtime: @options['runtime_name']))
         end
 
         def run
-          dir_exists? unless @options['force']
-          copy_template
+          @options['template'].install(to: @base_dir, force: @options['force'])
+          faastruby_yaml = "#{@base_dir}/faastruby.yml"
+          if File.file?(faastruby_yaml)
+            @yaml_content = YAML.load(File.read(faastruby_yaml))
+            @yaml_content['name'] = @function_name
+            @options['runtime_name'], @options['runtime_version'] = @yaml_content['runtime']&.split(':')
+            @options['runtime_name'] ||= 'ruby'
+            @options['runtime_version'] ||= '2.5.3'
+          else
+            @yaml_content = yaml_for(@options['runtime_name'])
+          end
           write_yaml
           post_tasks(@options['runtime_name'])
         end
@@ -27,9 +34,19 @@ module FaaStRuby
           "new".light_cyan + " FUNCTION_NAME [--blank] [--force] [--runtime]" +
           <<-EOS
 
-    --blank              # Create a blank function
-    --force              # Continue if directory already exists and overwrite files
-    --runtime            # Choose the runtime. Options are: #{SUPPORTED_RUNTIMES.join(', ')}
+    --blank
+        Create a blank function
+    --force
+        Continue if directory already exists and overwrite files
+    -g
+        Initialize a Git repository.
+    --runtime
+        Choose the runtime. Options are: #{SUPPORTED_RUNTIMES.join(', ')}
+    --template TYPE(local|git|github):SOURCE
+        Use another function as template. Examples:
+          --template local:/path/to/folder
+          --template git:git@github.com:user/repo.git
+          --template github:user/repo
 EOS
         end
 
@@ -44,26 +61,30 @@ EOS
           while @args.any?
             option = @args.shift
             case option
+            when '-g'
+              @options['git_init'] = true
+            when '--template'
+              FaaStRuby::CLI.error("Option '--template' can't be used with '--blank' or '--runtime'.".red) if @options['runtime'] || @options['blank_template']
+              template = @args.shift
+              type, source = template.split(':')
+              @options['template'] = FaaStRuby::Template.new(type: type, source: source)
             when '--runtime'
+              FaaStRuby::CLI.error("Option '--template' can't be used with '--blank' or '--runtime'.".red) if @options['template']
               @options['runtime'] = @args.shift
               @options['runtime_name'], @options['runtime_version'] = @options['runtime'].split(':')
-              @options['template_path'] = "templates/#{@options['runtime_name']}"
+              template_name = @options['blank_template'] ? 'example-blank' : 'example'
+              @options['template'] = FaaStRuby::Template.new(type: 'local', source: Template.gem_template_path_for('example', runtime: @options['runtime_name']))
               FaaStRuby::CLI.error(["Unsupported runtime: #{@options['runtime']}".red, "Supported values are #{SUPPORTED_RUNTIMES.join(", ")}"], color: nil) unless SUPPORTED_RUNTIMES.include?(@options['runtime'])
             when '-f', '--force'
               @options['force'] = true
             when '--blank'
-              @options['template'] = 'example-blank'
+              FaaStRuby::CLI.error("Option '--template' can't be used with '--blank' or '--runtime'.".red) if @options['template']
+              @options['blank_template'] = true
+              @options['template'] = FaaStRuby::Template.new(type: 'local', source: Template.gem_template_path_for('example-blank', runtime: @options['runtime_name'] || 'ruby'))
             else
               FaaStRuby::CLI.error(["Unknown argument: #{option}".red, usage], color: nil)
             end
           end
-        end
-
-        def dir_exists?
-          return unless File.directory?(@base_dir)
-          print "The folder '#{@function_name}' already exists. Overwrite files? [y/N] "
-          response = STDIN.gets.chomp
-          FaaStRuby::CLI.error("Cancelled", color: nil) unless response == 'y'
         end
 
         def missing_args
@@ -72,28 +93,6 @@ EOS
             @missing_args << usage
           end
           @missing_args
-        end
-
-        def copy_template
-          source = "#{Gem::Specification.find_by_name("faastruby").gem_dir}/#{@options['template_path']}/#{@options['template']}"
-          FileUtils.mkdir_p(@base_dir)
-          FileUtils.cp_r("#{source}/.", "#{@base_dir}/")
-          case @options['runtime_name']
-          when 'ruby'
-            puts "+ d #{@base_dir}".green
-            puts "+ d #{@base_dir}/spec".green
-            puts "+ f #{@base_dir}/spec/handler_spec.rb".green
-            puts "+ f #{@base_dir}/spec/spec_helper.rb".green
-            puts "+ f #{@base_dir}/Gemfile".green
-            puts "+ f #{@base_dir}/handler.rb".green
-          when 'crystal'
-            puts "+ d #{@base_dir}".green
-            puts "+ d #{@base_dir}/spec".green
-            puts "+ f #{@base_dir}/spec/handler_spec.cr".green
-            puts "+ f #{@base_dir}/spec/spec_helper.cr".green
-            puts "+ d #{@base_dir}/src".green
-            puts "+ f #{@base_dir}/src/handler.cr".green
-          end
         end
 
         def yaml_for(runtime_name)
@@ -116,10 +115,12 @@ EOS
         end
 
         def write_yaml
-          write_file("#{@base_dir}/faastruby.yml", @yaml_content.to_yaml)
+          write_file("#{@function_name}/faastruby.yml", @yaml_content.to_yaml)
         end
 
         def post_tasks(runtime_name)
+          update_readme
+          puts `git init #{@base_dir}` if @options['git_init']
           case runtime_name
           when 'ruby'
             bundle_install
@@ -129,6 +130,13 @@ EOS
           else
             bundle_install
           end
+        end
+
+        def update_readme
+          file_path = "#{@base_dir}/README.md"
+          return false unless File.file?(file_path)
+          readme = File.read(file_path)
+          File.write(file_path, ERB.new(readme).result(binding))
         end
 
         def bundle_install

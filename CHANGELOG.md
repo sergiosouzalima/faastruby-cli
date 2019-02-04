@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.16 - Feb 4 2019
+- Add support for function templates
+- Add cli_version to `faastruby.yml`
+
 ## 0.4.15 - Feb 2 2019
 - Add support for Crystal 0.27.1 and Ruby 2.6.1
 
