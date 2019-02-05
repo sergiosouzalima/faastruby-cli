@@ -10,4 +10,5 @@ module FaaStRuby
   require 'faastruby/server/runner'
   require 'faastruby/server/event'
   require 'faastruby/server/response'
+  require 'faastruby/server/sentinel'
 end

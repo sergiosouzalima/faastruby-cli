@@ -21,6 +21,7 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'sinatra-contrib', '~> 2.0'
   spec.add_runtime_dependency 'puma', '~> 3.12'
   spec.add_runtime_dependency 'faastruby-rpc', '~> 0.2.1'
+  spec.add_runtime_dependency 'filewatcher', '~> 1.1.1'
 
   # Prevent pushing this gem to RubyGems.org. To allow pushes either set the 'allowed_push_host'
   # to allow pushing to a single host or delete this section to allow pushing to any host.

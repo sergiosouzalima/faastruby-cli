@@ -7,8 +7,10 @@ require 'faastruby/server'
 require 'sinatra'
 require 'sinatra/multi_route'
 require 'colorize'
-
+require 'filewatcher'
+SERVER_ROOT = Dir.pwd
 FaaStRuby::EventHub.listen_for_events!
+FaaStRuby::Sentinel.start!
 
 set :port, 3000
 set :bind, '0.0.0.0'
@@ -36,6 +38,7 @@ route :head, :get, :post, :put, :patch, :delete, '/:workspace_name/:function_nam
   end
   query_params = parse_query(request.query_string)
   context = set_context(params[:workspace_name], params[:function_name])
+  puts "[#{path}] <=# body=\"#{body}\" headers=#{headers} query_params=#{query_params}".black.on_light_green
   event = FaaStRuby::Event.new(body: body, query_params: query_params, headers: headers, context: context)
   response = FaaStRuby::Runner.new.call(params[:workspace_name], params[:function_name], event, rpc_args)
   status response.status
@@ -45,7 +48,7 @@ route :head, :get, :post, :put, :patch, :delete, '/:workspace_name/:function_nam
   else
     response_body = response.body
   end
-  puts "[#{path}] #=> status=#{response.status} body=#{response_body.inspect} headers=#{Oj.dump response.headers}".light_blue
+  puts "[#{path}] #=> status=#{response.status} body=#{response_body.inspect} headers=#{Oj.dump response.headers}".black.on_light_blue
   body response_body  
 end
 

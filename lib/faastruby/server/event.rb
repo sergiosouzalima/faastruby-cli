@@ -15,5 +15,8 @@ module FaaStRuby
         "context" => @context
       }
     end
+    def to_json
+      Oj.dump(to_h)
+    end
   end
 end

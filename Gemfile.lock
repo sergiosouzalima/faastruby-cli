@@ -1,9 +1,10 @@
 PATH
   remote: .
   specs:
-    faastruby (0.4.17)
+    faastruby (0.4.18)
       colorize (~> 0.8)
       faastruby-rpc (~> 0.2.1)
+      filewatcher (~> 1.1.1)
       oj (~> 3.6)
       puma (~> 3.12)
       rest-client (~> 2.0)
@@ -28,6 +29,8 @@ GEM
     equatable (0.5.0)
     faastruby-rpc (0.2.1)
       oj (~> 3.6)
+    filewatcher (1.1.1)
+      optimist (~> 3.0)
     hashdiff (0.3.7)
     http-cookie (1.0.3)
       domain_name (~> 0.5)
@@ -39,6 +42,7 @@ GEM
     necromancer (0.4.0)
     netrc (0.11.0)
     oj (3.7.8)
+    optimist (3.0.0)
     pastel (0.7.2)
       equatable (~> 0.5.0)
       tty-color (~> 0.4.0)
